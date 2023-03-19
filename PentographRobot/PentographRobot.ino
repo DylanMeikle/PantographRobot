@@ -72,7 +72,7 @@ void loop() {
     5 - Continue to retract the bar and maybe angle the wrist servo
     6 - Once retracted like 70 %, extend again to lower bot onto platform
     7 - A few seconds after microswitch1 detects ground and arm is 
-        fully exteded, release the claw
+        fully extended, release the claw
     8 - Retract arm
     9 - Drive to edge
     10 - Drive back
