@@ -8,6 +8,11 @@
 #define MSWITCH   10
 #define POT       1
 
+#define LEFT_MOTOR_A        35  // GPIO35 pin 28 (J35) Motor 1 A
+#define LEFT_MOTOR_B        36  // GPIO36 pin 29 (J36) Motor 1 B
+#define RIGHT_MOTOR_A       37  // GPIO37 pin 30 (J37) Motor 2 A
+#define RIGHT_MOTOR_B       38  // GPIO38 pin 31 (J38) Motor 2 B
+
 Motion Bot = Motion();
 
 
@@ -17,12 +22,13 @@ boolean Time_Up_3 = false;
 
 unsigned int current_Millis;
 unsigned int previous_Millis;
-unsigned int Bot_Phase = 0;
+unsigned int Bot_Phase = 3;
 int pos1 = 0;
 int pos2 = 0;
 int i = 0;
 int a;
 int b;
+unsigned char uc_Drive_Speed;
 
 //=============================================================
 //Values for Servos
@@ -62,6 +68,7 @@ void setup()
   Bot.servoBegin("S2", LEG2);
   Bot.servoBegin("S3", CLAW);
   Bot.servoBegin("S4", WRIST);
+  Bot.driveBegin("D1", LEFT_MOTOR_A, LEFT_MOTOR_B, RIGHT_MOTOR_A, RIGHT_MOTOR_B);
   
   //Legs(Leg1_Min, Leg2_Min);
   //add code to have the claw start closed or open
@@ -124,9 +131,16 @@ void loop() {
         Bot.ToPosition("S3", Claw_Closed);
         Serial.printf("Claw Closed\n");          
         Bot_Phase = 0;
+        break;
         
         
-      }    
+      }case 3:
+      {
+        uc_Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
+        Bot.Forward("D1", uc_Drive_Speed);
+        Bot_Phase = 3;
+        break;
+      }
 
     }
   }
