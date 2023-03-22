@@ -4,7 +4,7 @@
 #define LEG2      42
 #define CLAW      40
 #define WRIST     39
-#define MOTOR     38
+
 #define MSWITCH   10
 #define POT       1
 
@@ -68,6 +68,7 @@ void setup()
   Bot.servoBegin("S2", LEG2);
   Bot.servoBegin("S3", CLAW);
   Bot.servoBegin("S4", WRIST);
+  //Bot.motorBegin("M1", LEFT_MOTOR_A, LEFT_MOTOR_B);
   Bot.driveBegin("D1", LEFT_MOTOR_A, LEFT_MOTOR_B, RIGHT_MOTOR_A, RIGHT_MOTOR_B);
   
   //Legs(Leg1_Min, Leg2_Min);
@@ -136,9 +137,16 @@ void loop() {
         
       }case 3:
       {
+        Bot.Stop("D1");
+        Bot_Phase = 4;
+        break;        
+      }case 4:
+      {
         uc_Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
-        Bot.Forward("D1", uc_Drive_Speed);
-        Bot_Phase = 3;
+        Bot.Forward("D1", uc_Drive_Speed, uc_Drive_Speed);
+        Serial.println(uc_Drive_Speed);
+        
+        Bot_Phase = 4;
         break;
       }
 
