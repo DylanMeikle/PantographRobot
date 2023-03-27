@@ -1,4 +1,6 @@
 #include <MSE2202_Lib.h>
+#include <stdio.h>
+//#include<math.h>
 
 #define WRIST             2
 #define CLAW              45
@@ -13,10 +15,13 @@
 #define RIGHT_MOTOR_B     38  // GPIO38 pin 31 (J38) Motor 2 B
 
 #define MODE_BUTTON       0
-#define MSWITCH           10
+#define MSWITCH_1         4   //The Dragging one
+#define MSWITCH_2         5   //The one to stop the pentograph exterder
+#define MSWITCH_3         6   //The one in the Claw
+#define MSWITCH_4         7   //
 #define POT               1
 
-//#define TESTING           1
+#define TESTING           1
 
 
 Motion Bot = Motion();
@@ -44,7 +49,7 @@ unsigned int ui_Mode_PB_Debounce = 0;
 
 const unsigned int Bar_Height = 45;
 const unsigned int Gap_Width = 30;
-unsigned int angle = arctan(Bar_Height/Gap_Width);
+//unsigned int angle = arctan(Bar_Height/Gap_Width);
 
 
 //=============================================================
@@ -57,12 +62,14 @@ const int Wrist_Straight = 800; //Wrist parallel with arm
 const int Wrist_Min = 290;
 //Leg1: 41
 //Leg2: 42
-const int Leg1_Max = 400;     //Legs holding the bot at maximum upright
-const int Leg2_Max = 2100;
-const int Leg1_Min = 0;       //Above the base
-const int Leg2_Min = 0;
-const int Leg1_Side = 1282;   //Legs parallel with bot (not 180 to max)
-const int Leg2_Side = 1315;
+const int Leg1_Max = 2100;     //Legs holding the bot at maximum upright
+const int Leg2_Max = 330;
+const int Leg1_Min = 330;       //Above the base
+const int Leg2_Min = 2100;
+const int Leg1_Side = 1290;   //Legs parallel with bot (not 180 to max)
+const int Leg2_Side = 1175;
+int Leg1_Bar;                 //Angled so that the body directs the pentograph towards the bar
+int Leg2_Bar;                 // based on gap and height
 
 
 
@@ -96,7 +103,7 @@ void setup()
 
 }
 void Legs(int Leg1, int Leg2){
-  pos1 = map(Leg1 ,0, 4096, Leg1_Min, Leg1_Mas);
+  pos1 = map(Leg1 ,0, 4096, Leg1_Min, Leg1_Max);
   pos2 = map(Leg2 ,0, 4096, Leg2_Min, Leg2_Max);      
         
   Bot.ToPosition("S1", pos1);
@@ -106,7 +113,7 @@ void Legs(int Leg1, int Leg2){
 void loop() {
   
   current_Millis = millis();
-  if((current_Millis - previous_Millis) >= 2000){
+  if((current_Millis - previous_Millis) >= 1000){
     previous_Millis = current_Millis;
     Time_Up_1 = true;
 
@@ -140,7 +147,7 @@ void loop() {
             {
                ui_Mode_PB_Debounce = 0;                                       // Reset debounce timer count
                Bot_Phase++;                                         // Switch to next mode
-               Bot_Phase = Bot_Phase & Phase_Number;                 // Keep mode index between 0 and 7
+               Bot_Phase = Bot_Phase & 5;                 // Keep mode index between 0 and 7
                                                         
             }
          }
@@ -171,57 +178,85 @@ void loop() {
         Bot.Forward("D1", Drive_Speed);
         //Test the microswitch to see what values it outputs when pushed
         // for now assuming OFF means not pressed
-        if(analogRead(MSWITCH) == OFF){
+        if(analogRead(MSWITCH_1) == HIGH){
           Bot_Phase = 2;
           Bot.Stop("D1");
         }
         break;
       }case 2:
       {
-        
-        Legs();
-      }
-      case 2:
-      {
-        //Straighten the wrist
-        Bot.ToPosition("S4", Wrist_Straight);
-        Serial.printf("Wrist Straightened\n");
-        Bot_Phase = 2;
+        //Change Distances of gap and height to include the bots actual 
+        // body dimensions
+        Legs(Leg1_Bar, Leg2_Bar);
+        Serial.println("Bot Angled");
+        Bot_Phase = 3;
         break;
       }case 3:
       {
-        Bot.ToPosition("S3", Claw_Closed);
-        Serial.printf("Claw Closed\n");          
-        Bot_Phase = 3;
+        //Straighten the wrist
+        Bot.ToPosition("S4", Wrist_Straight);
+        Serial.println("Wrist Straightened");
+        Bot_Phase = 4;
         break;
       }case 4:
       {
+        Bot.Forward("M1", Drive_Speed);
+        if(analogRead(MSWITCH_2) == HIGH){
+          Bot_Phase = 6;
+          Bot.Stop("M1");
+        }
+        break;
+      }
+      case 5:
+      {
+        Bot.ToPosition("S3", Claw_Closed);
+        Serial.println("Claw Closed");  
+        if(analogRead(MSWITCH_1) == HIGH){
+          Bot_Phase = 6;
+        }        
+        
+        break;
+      }case 6:
+      {
         Bot.ToPosition("S3", Claw_Open);
-        Bot_Phase = 4;
+        Bot_Phase = 7;
         break;        
       }
 
     }
 #else
     //Testing Parts
+
+    //Reset to change case
+    Serial.println("Enter case #");
+    while(Serial.available() == 0){
+      Bot_Phase = Serial.parseInt();
+    }
+    
+    
     switch(Bot_Phase){
+      
       /*
       0 - Test Values for Leg 1 using POT
       1 - Test Values for Leg 2
       2 - Claw Values
       3 - Wrist Values
       4 - Pentograph Rod Motor
-      5 - 
+      5 - Wheels
+      6 - Microswitches - maybe
       */
       case 0:
       {
-        pos = map(analogRead(POT), 0, 4096, Leg1_Min, Leg1_Max); 
+        Serial.printf("Testing Servo #1 (Pin %d)\n", LEG1);
+        pos = map(analogRead(POT), 0, 4096, 330, 2100); 
         Bot.ToPosition("S1", pos);
         Serial.println(pos);
+        
         
         break;
       }case 1:
       {
+        Serial.printf("Testing Servo #2 (Pin %d)\n", LEG2);
         pos = map(analogRead(POT), 0, 4096, Leg2_Min, Leg2_Max); 
         Bot.ToPosition("S2", pos);
         Serial.println(pos);
@@ -229,24 +264,28 @@ void loop() {
         break;
       }case 2:
       {
+        Serial.printf("Testing Claw (Pin %d)\n", CLAW);
         pos = map(analogRead(POT), 0, 4096, Claw_Closed, Claw_Open); 
         Bot.ToPosition("S3", pos);
         Serial.println(pos);
         break;
       }case 3:
       {
+        Serial.printf("Testing Wrist (Pin %d)\n", WRIST);
         pos = map(analogRead(POT), 0, 4096, Wrist_Min, Wrist_Max); 
         Bot.ToPosition("S4", pos);
-        Seria.println(pos);
+        Serial.println(pos);
         break;
       }case 4:
       {
+        Serial.printf("Testing Pentograph Motor (Pins %d - %d)\n", CENTER_MOTOR_B, CENTER_MOTOR_A);
         Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255); 
         Bot.Forward("M1", Drive_Speed);
         Serial.println(millis()/1000);
         break;
       }case 5:
       {
+        Serial.printf("Testing Wheels (Pins)\n");
         Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);   
         Bot.Forward("D1", Drive_Speed);
         Serial.println(Drive_Speed);
