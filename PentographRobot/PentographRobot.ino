@@ -21,7 +21,8 @@
 #define MSWITCH_4         7   //
 #define POT               1
 
-#define TESTING           1
+//Uncomment to test motors and servos
+//#define TESTING           1
 
 
 Motion Bot = Motion();
@@ -228,11 +229,11 @@ void loop() {
     //Testing Parts
 
     //Reset to change case
-    Serial.println("Enter case #");
     while(Serial.available() == 0){
+      Serial.println("Enter case #");
       Bot_Phase = Serial.parseInt();
+      Serial.println(Bot_Phase);
     }
-    
     
     switch(Bot_Phase){
       
