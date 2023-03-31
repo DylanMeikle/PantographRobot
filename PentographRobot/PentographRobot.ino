@@ -101,11 +101,13 @@ void setup() {
   //Bot_Servos.servoBegin("S3", CLAW);
   //Bot_Servos.servoBegin("S4", WRIST);
   
-  Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
+  //Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
+  Bot.servoBegin("S3", CLAW);
+  Bot.servoBegin("S4", WRIST);
   Bot.driveBegin("D1", LEFT_MOTOR_A, LEFT_MOTOR_B, RIGHT_MOTOR_A, RIGHT_MOTOR_B);
   //Bot.driveBegin("D2", CENTER_MOTOR_A, CENTER_MOTOR_B, 15, 16);
-  //Bot.servoBegin("S1", LEG1);
-  //Bot.servoBegin("S2", LEG2);
+  Bot.servoBegin("S1", LEG1);
+  Bot.servoBegin("S2", LEG2);
   
   pinMode(MODE_BUTTON, INPUT_PULLUP);
   pinMode(MSWITCH_1, INPUT);
@@ -226,11 +228,25 @@ void loop() {
         }
     }
 #else
-    //Testing Parts
-
+    /* TESTING CODE SECTION
+    This section of code runs when TESTING is defined (found at the bottom of all the #define statements).
+    What happens is you have to choose what you want to test by typing it's corresponding number into
+    the serial monitor. When you're done testing one compoenent you can press reset on your board and then
+    you will be prompted to choose another component to test. List of components and their corresponding numbers below.
+    */
+    /*
+          0 - Test Values for Leg 1 using POT     - Working
+          1 - Test Values for Leg 2               - Not Working - Too many channels in use?
+          2 - Claw Values                         - Working
+          3 - Wrist Values                        - Working
+          4 - Pentograph Rod Motor                - Not Working - Why the fuck doesn't M1 work?
+          5 - Wheels                              - Working
+          6 - Ultrasonic sensor                   - Working 
+          7 - Microswitches                       - Working
+    */
     //Reset to change case
     if(Bot_Phase == 0){
-       Serial.println("Enter case #");
+      Serial.println("Enter case #");
       while (Serial.available() == 0) {
         Bot_Phase = Serial.parseInt();
       }
@@ -239,17 +255,6 @@ void loop() {
    
     Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
     switch (Bot_Phase) {
-
-      /*
-      0 - Test Values for Leg 1 using POT
-      1 - Test Values for Leg 2
-      2 - Claw Values
-      3 - Wrist Values
-      4 - Pentograph Rod Motor
-      5 - Wheels
-      6 - Ultrasonic sensor
-      7 - Microswitches - maybe
-      */
       case 0:
         {
           Serial.printf("Testing Servo #1 (Pin %d): ", LEG1);
@@ -273,6 +278,7 @@ void loop() {
           Serial.printf("Testing Claw (Pin %d): ", CLAW);
           pos = map(analogRead(POT), 0, 4096, Claw_Closed, Claw_Open);
           //Bot_Servos.ToPosition("S3", pos);
+          Bot.ToPosition("S3", pos);
           Serial.println(pos);
           break;
         }
@@ -281,6 +287,7 @@ void loop() {
           Serial.printf("Testing Wrist (Pin %d): ", WRIST);
           pos = map(analogRead(POT), 0, 4096, Wrist_Min, Wrist_Max);
           //Bot_Servos.ToPosition("S4", pos);
+          Bot.ToPosition("S4", pos);
           Serial.println(pos);
           break;
         }
