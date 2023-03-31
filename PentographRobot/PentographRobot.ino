@@ -1,3 +1,6 @@
+/*
+Dylan Meikle 
+*/
 #include <MSE2202_Lib.h>
 #include <stdio.h>
 //#include<math.h>
@@ -56,6 +59,7 @@ unsigned int ui_Mode_PB_Debounce = 0;
 long duration;
 int distance;
 int Button_State;
+char Motor_Direction;
 
 const unsigned int Bar_Height = 45;
 const unsigned int Gap_Width = 30;
@@ -99,8 +103,9 @@ void setup() {
   
   Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
   Bot.driveBegin("D1", LEFT_MOTOR_A, LEFT_MOTOR_B, RIGHT_MOTOR_A, RIGHT_MOTOR_B);
-  Bot.servoBegin("S1", LEG1);
-  Bot.servoBegin("S2", LEG2);
+  //Bot.driveBegin("D2", CENTER_MOTOR_A, CENTER_MOTOR_B, 15, 16);
+  //Bot.servoBegin("S1", LEG1);
+  //Bot.servoBegin("S2", LEG2);
   
   pinMode(MODE_BUTTON, INPUT_PULLUP);
   pinMode(MSWITCH_1, INPUT);
@@ -208,11 +213,14 @@ void loop() {
     //Testing Parts
 
     //Reset to change case
-    while (Serial.available() == 0) {
-      Serial.println("Enter case #");
-      Bot_Phase = Serial.parseInt();
+    if(Bot_Phase == 0){
+       Serial.println("Enter case #");
+      while (Serial.available() == 0) {
+        Bot_Phase = Serial.parseInt();
+      }
       Serial.println(Bot_Phase);
     }
+   
     Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
     switch (Bot_Phase) {
 
@@ -262,11 +270,27 @@ void loop() {
         }
       case 4:
         {
+          /*
           Serial.printf("Testing Pentograph Motor (Pins %d & %d): ", CENTER_MOTOR_B, CENTER_MOTOR_A);
           //Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
           //Bot_Motors.Forward("M1", Drive_Speed);
           Bot.Forward("M1", Drive_Speed);
-          Serial.println(millis() / 1000);
+          Serial.println(millis() / 1000);*/
+          
+          Bot.Forward("M1", Drive_Speed);
+          /*
+          while(i != 2){
+            Motor_Direction = Serial.read();
+            Serial.println(Motor_Direction);
+            if(Motor_Direction == 'F')
+            {
+              Bot.Forward("M1", Drive_Speed);
+            }else if (Motor_Direction == 'R'){
+              Bot.Reverse("M1", Drive_Speed);
+            }else if(Motor_Direction == 'S'){
+              break;
+            }
+          }*/
           break;
         }
       case 5:
@@ -275,39 +299,40 @@ void loop() {
           //Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
           //Bot.Forward("D1", Drive_Speed);
           //Serial.println(Drive_Speed);
+          Serial.println(i);
           switch(i)                                                  // Cycle through drive states
           {
             case 0:                                                   // Stop
             {
-              Serial.println(i);
+              
               //Bot_Motors.Stop("D1");                                       // Drive ID
               Bot.Stop("D1");
               i = 1;                                                // Next state: drive forward
               break;
             }case 1:                                                // Drive forward
             {
-              Serial.println(i);
+              
               //Bot_Motors.Forward("D1", Drive_Speed, Drive_Speed);          // Drive ID, Left speed, Right speed
               Bot.Forward("D1", Drive_Speed, Drive_Speed);
               i = 2;                                                // Next state: drive backward
               break;
             }case 2:                                                // Drive backward
             {
-              Serial.println(i);
+              
               //Bot_Motors.Reverse("D1", Drive_Speed);                       // Drive ID, Speed (same for both)
               Bot.Reverse("D1", Drive_Speed); 
               i = 3;                                                // Next state: turn left
               break;
             }case 3:                                                // Turn left (counterclockwise)
             {
-              Serial.println(i);
+              
               //Bot_Motors.Left("D1", Drive_Speed);                          // Drive ID, Speed (same for both)
               Bot.Left("D1", Drive_Speed);
               i = 4;                                                // Next state: turn right
               break;
             }case 4:                                                // Turn right (clockwise)
             {
-              Serial.println(i);
+              
               //Bot_Motors.Right("D1", Drive_Speed);                         // Drive ID, Speed (same for both)
               Bot.Right("D1", Drive_Speed);
               i = 0;                                                // Next state: stop
@@ -353,6 +378,7 @@ void loop() {
         {
           Serial.printf("Microswitch (Pin %d): ", MSWITCH_1);
           Button_State = digitalRead(MSWITCH_1);
+                    
           //Serial.println(Button_State);
           if (Button_State == HIGH) {
             Serial.println("HIGH");
