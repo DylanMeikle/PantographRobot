@@ -134,6 +134,22 @@ void loop() {
   }
   if (Time_Up_1) {
     Time_Up_1 = false;
+    /*
+    0 - Stand up (Lowest servo can go)
+    1 - Drive Forward until microcswitch1 detects edge
+    2 - Based on distance from bar, calculate the angle the servos
+        should be at to reach the bar.
+    3 - Begin to exted the arm using the gear motor (fully extended)
+    4 - Retract the arm and stop once microswitch2 detectes bar
+    5 - Continue to retract the bar and maybe angle the wrist servo
+    6 - Once retracted like 70 %, extend again to lower bot onto platform
+    7 - A few seconds after microswitch1 detects ground and arm is 
+        fully extended, release the claw
+    8 - Retract arm
+    9 - Drive to edge
+    10 - Drive back
+    11 - Signal finished (Maybe just fold legs or have them go 
+        up and down)
     /* Order in which the Robot Phases Should Occur:
     0 - Stand up to initial height
     1 - Drive towards edge until microswitch slips off edge
