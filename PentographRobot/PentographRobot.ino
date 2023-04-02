@@ -22,33 +22,16 @@ Dylan Meikle
 
 #define MODE_BUTTON 0
 #define MSWITCH_1 4  //The Dragging one
-#define MSWITCH_2 5  //The one to stop the pentograph motor
-#define MSWITCH_3 6  //The one to determine when the pentograph is fully retracted
-#define MSWITCH_4 7  //
 #define POT 1
 
-#define ENCODER_LEFT_A 15
-#define ENCODER_LEFT_B 16
-#define ENCODER_LEFT_DIR 17
-#define ENCODER_LEFT_SPD 18
-#define ENCODER_RIGHT_A 11
-#define ENCODER_RIGHT_B 12
-#define ENCODER_RIGHT_DIR 13
-#define ENCODER_RIGHT_SPD 14
-
-
 //Uncomment to test motors and servos
-#define TESTING 1
+//#define TESTING 1
 
 //=============================================================
 
 //Motion Bot_Motors = Motion();
 //Motion Bot_Servos = Motion();
 Motion Bot = Motion();
-
-//Remember to add encoder code so that you can measure
-// distance travelled
-Encoders driveEncoders = Encoders();
 
 //=============================================================
 
@@ -58,8 +41,8 @@ unsigned int current_Millis;
 unsigned int previous_Millis;
 unsigned int Bot_Phase = 0;
 int pos = 0;
-int pos1 = 0;
-int pos2 = 0;
+//int pos1 = 0;
+//int pos2 = 0;
 int i = 0;
 int Time = 1000;
 
@@ -69,8 +52,8 @@ int distance;
 int Button_State;
 
 
-const double Bar_Height = 45;
-const double Gap_Width = 30;
+//const double Bar_Height = 45;
+//const double Gap_Width = 30;
 //unsigned double Hyp = sqrt((Bar_Height * Bar_Height) + (Gap_Width * Gap_Width));
 //unsigned int angle = arctan(Bar_Height/Gap_Width);
 
@@ -83,7 +66,6 @@ const int Claw_Closed = 1890;
 const int Wrist_Max = 1490;
 const int Wrist_Straight = 800;  //Wrist parallel with arm
 const int Wrist_Min = 290;
-int Scan_Angle = Wrist_Min;
 //Leg1: 41
 //Leg2: 42
 //2: new min 1710
@@ -94,19 +76,19 @@ const int Leg1_Min = 720;  //Above the base 330
 const int Leg2_Min = 1710;                //2100
 const int Leg1_Side = 1220;  //Legs parallel with bot (not 180 to max)
 const int Leg2_Side = 1160;
+int Scan_Angle1 = Leg1_Max;
+int Scan_Angle2 = Leg2_Max;
 int Leg1_Bar;  //Angled so that the body directs the pentograph towards the bar
 int Leg2_Bar;  // based on gap and height
 
 //=================================================================================
 
 void Legs(int Leg1, int Leg2) {
-  pos1 = map(Leg1, 0, 4096, Leg1_Min, Leg1_Max);
-  pos2 = map(Leg2, 0, 4096, Leg2_Min, Leg2_Max);
-
   //Bot_Servos.ToPosition("S1", pos1);
   //Bot_Servos.ToPosition("S2", pos2);
-  Bot.ToPosition("S1", pos1);
-  Bot.ToPosition("S2", pos2);
+
+  Bot.ToPosition("S1", Leg1);
+  Bot.ToPosition("S2", Leg2);
 }
 
 //=========================================================================================
@@ -136,7 +118,10 @@ void setup() {
   pinMode(MSWITCH_1, INPUT);
   pinMode(ECHO, INPUT);   //ECHO takes in data
   pinMode(TRIG, OUTPUT);  //TRIG pin outputs data
-  //Legs(Leg1_Side, Leg2_Side);
+
+  Legs(Leg1_Side, Leg2_Side);
+  Bot.ToPosition("S4", Wrist_Straight);
+  Bot.ToPosition("S3", Claw_Open);
   //add code to have the claw start closed or open
 }
 
@@ -162,14 +147,15 @@ void loop() {
     6 - Retract the arm for a few seconds                               - Test time to retract(currently 10 seconds)
     7 -
     */
+    Bot_Phase = 1;
 #ifndef TESTING
     switch (Bot_Phase) {
       case 0:
         {
           
-          Legs(4095, 4095);
+          Legs(Leg1_Max, Leg2_Max);
           Serial.println("Legs Extended");
-          Bot_Phase = 0;
+          Bot_Phase = 1;
 
           break;
         }
@@ -178,7 +164,7 @@ void loop() {
           //Bot_Motors.Forward("D1", Drive_Speed);
           Bot.Forward("D1", Drive_Speed);
           if (analogRead(MSWITCH_1) == LOW) {
-            Bot_Phase = 2;
+            Bot_Phase = 1;
             //Bot_Motors.Stop("D1");
             Bot.Stop("D1");
             Serial.println("Bot in Position");
@@ -187,27 +173,34 @@ void loop() {
         }
       case 2:
         {
-          //Change Distances of gap and height to include the bots actual
-          // body dimensions
-          //Leg#_Bar still need to be calculated somehow
-          Legs(Leg1_Bar, Leg2_Bar);
+          Legs(Leg1_Max, Leg2_Max);
           Serial.println("Bot Angled");
           Bot_Phase = 3;
           break;
         }
-      case 3:  //Wrist goes at different angles, scanning for bar
+      case 3:   //Originally - Wrist goes at different angles, scanning for bar
+                //Final - Wrist angles to be perpendicular to pentograph and then the legs angles so that the 
+                // ultrasonic sensor can scan for the bar
         {
           Time = 10;
           //Start at Wrist_Min and end at Wrist_Max
-          if (Scan_Angle >= Wrist_Max || Scan_Angle <= Wrist_Min) {
+          /*                                                        //This code was removed as we're now using the base servos
+          if (Scan_Angle >= Wrist_Max || Scan_Angle <= Wrist_Min) { // instead of the wrist servo
             if (Scan_Angle >= Wrist_Max) {
               Scan_Angle = Scan_Angle + 10;
             } else {
               Scan_Angle = Scan_Angle - 10;
             }
+          }*/
+          //Figure out how to scan using legs
+          if(Scan_Angle1){
+            Scan_Angle1 = Scan_Angle1 - 10;
           }
-
-          Bot.ToPosition("S4", Scan_Angle);
+          if(Scan_Angle2){
+            Scan_Angle2 = Scan_Angle2 + 10;
+          }
+          Legs(Scan_Angle_1, Scan_Angle_2);
+          //Bot.ToPosition("S4", Scan_Angle);
           switch (i) {
             case 0:
               {
@@ -236,11 +229,12 @@ void loop() {
           break;
         }case 4:
         {
-          //Time = 10;
+          Time = 10;
           Bot.Forward("M1", Drive_Speed);
+          /*                                      //MSWITCH_2 was removed as it was unnecessary
           if(analogRead(MSWITCH_2) == HIGH){      //If the pentograph over extends then it will hit mswitch2 and stop operations
             Bot.Stop("M1");                       // then maybe consider having it retract and restart by scanning for bar.
-          }
+          }*/
           switch (i) {
             case 0:
             {
@@ -291,20 +285,20 @@ void loop() {
           break;
         }case 8:  //Opens claw
         {
-          Time = 2000;
+          Time = 1000;
           Bot.ToPosition("S3", Claw_Open);
           Bot_Phase = 9;
           break;
         }case 9:
         {
+          Time = 3000;
           Bot.Reverse("M1", Drive_Speed);
-          if(MSWITCH_3 == HIGH){
-            Bot_Phase = 10;
-            Bot.Stop("M1");
-          }
+          Bot_Phase = 10;
           break;
         }case 10:
         {
+          Time = 10;
+          Bot.Stop("M1");
           Bot.Forward("D1", Drive_Speed);
           if(MSWITCH_1 == LOW){
             Bot_Phase = 11;
@@ -325,7 +319,7 @@ void loop() {
           break;          
         }case 13:
         {
-          Legs(Leg1_Min, Leg2_Min);
+          Legs(Leg1_Side, Leg2_Side);
           break;
         }
 
