@@ -70,7 +70,7 @@ const int Wrist_Min = 290;
 //Leg2: 42
 //2: new min 1710
 //1: new min 720
-const int Leg1_Max = 2099;  //Legs holding the bot at maximum upright
+const int Leg1_Max = 2100;  //Legs holding the bot at maximum upright
 const int Leg2_Max = 330;
 const int Leg1_Min = 720;  //Above the base 330
 const int Leg2_Min = 1710;                //2100
@@ -193,12 +193,11 @@ void loop() {
             }
           }*/
           //Figure out how to scan using legs
-          if(Scan_Angle1){
+          if(Scan_Angle1 >= Leg1_Min + 10 && Scan_Angle2 <= Leg2_Min - 10){
             Scan_Angle1 = Scan_Angle1 - 10;
-          }
-          if(Scan_Angle2){
             Scan_Angle2 = Scan_Angle2 + 10;
           }
+          
           Legs(Scan_Angle_1, Scan_Angle_2);
           //Bot.ToPosition("S4", Scan_Angle);
           switch (i) {
