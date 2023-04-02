@@ -3,7 +3,7 @@ Dylan Meikle
 */
 #include <MSE2202_Lib.h>
 #include <stdio.h>
-//#include<math.h>
+#include<math.h>
 
 #define WRIST 2
 #define CLAW 45
@@ -64,16 +64,14 @@ int i = 0;
 int Time = 1000;
 
 unsigned char Drive_Speed;
-unsigned int ui_Mode_PB_Debounce = 0;
 long duration;
 int distance;
 int Button_State;
-char Motor_Direction;
-int Scan_Angle = Wrist_Min;
 
-const unsigned double Bar_Height = 45;
-const unsigned double Gap_Width = 30;
-unsigned double Hyp = sqrt((Bar_Height * Bar_Height) + (Gap_Width * Gap_Width));
+
+const double Bar_Height = 45;
+const double Gap_Width = 30;
+//unsigned double Hyp = sqrt((Bar_Height * Bar_Height) + (Gap_Width * Gap_Width));
 //unsigned int angle = arctan(Bar_Height/Gap_Width);
 
 
@@ -85,14 +83,17 @@ const int Claw_Closed = 1890;
 const int Wrist_Max = 1490;
 const int Wrist_Straight = 800;  //Wrist parallel with arm
 const int Wrist_Min = 290;
+int Scan_Angle = Wrist_Min;
 //Leg1: 41
 //Leg2: 42
-const int Leg1_Max = 2100;  //Legs holding the bot at maximum upright
+//2: new min 1710
+//1: new min 720
+const int Leg1_Max = 2099;  //Legs holding the bot at maximum upright
 const int Leg2_Max = 330;
-const int Leg1_Min = 330;  //Above the base
-const int Leg2_Min = 2100;
-const int Leg1_Side = 1290;  //Legs parallel with bot (not 180 to max)
-const int Leg2_Side = 1175;
+const int Leg1_Min = 720;  //Above the base 330
+const int Leg2_Min = 1710;                //2100
+const int Leg1_Side = 1220;  //Legs parallel with bot (not 180 to max)
+const int Leg2_Side = 1160;
 int Leg1_Bar;  //Angled so that the body directs the pentograph towards the bar
 int Leg2_Bar;  // based on gap and height
 
@@ -108,18 +109,7 @@ void Legs(int Leg1, int Leg2) {
   Bot.ToPosition("S2", pos2);
 }
 
-//Interrupt Service Routines
-void IRAM_ATTR LeftSpd_EncoderISR()  // ISR to update left encoder count
-{
-  driveEncoders.LeftSpd_Encoder_ISR();
-}
-
-void IRAM_ATTR RightSpd_EncoderISR()  // ISR to update right encoder count
-{
-  driveEncoders.RightSpd_Encoder_ISR();
-}
-
-//=============================================================
+//=========================================================================================
 
 void setup() {
   Serial.begin(9600);
@@ -135,14 +125,12 @@ void setup() {
   //Bot_Servos.servoBegin("S4", WRIST);
 
   //Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
+  Bot.servoBegin("S1", LEG1);
+  Bot.servoBegin("S2", LEG2);
   Bot.servoBegin("S3", CLAW);
   Bot.servoBegin("S4", WRIST);
   Bot.driveBegin("D1", LEFT_MOTOR_A, LEFT_MOTOR_B, RIGHT_MOTOR_A, RIGHT_MOTOR_B);
   //Bot.driveBegin("D2", CENTER_MOTOR_A, CENTER_MOTOR_B, 15, 16);
-  Bot.servoBegin("S1", LEG1);
-  Bot.servoBegin("S2", LEG2);
-
-  driveEncoders.Begin(0, LeftSpd_EncoderISR, RightSpd_EncoderISR);
 
   pinMode(MODE_BUTTON, INPUT_PULLUP);
   pinMode(MSWITCH_1, INPUT);
@@ -178,10 +166,10 @@ void loop() {
     switch (Bot_Phase) {
       case 0:
         {
-          //Maybe find a good initial value that isn't max
-          Legs(Leg1_Max, Leg2_Max);
+          
+          Legs(4095, 4095);
           Serial.println("Legs Extended");
-          Bot_Phase = 1;
+          Bot_Phase = 0;
 
           break;
         }
@@ -189,7 +177,7 @@ void loop() {
         {
           //Bot_Motors.Forward("D1", Drive_Speed);
           Bot.Forward("D1", Drive_Speed);
-          if (analogRead(MSWITCH_1) == LOW {
+          if (analogRead(MSWITCH_1) == LOW) {
             Bot_Phase = 2;
             //Bot_Motors.Stop("D1");
             Bot.Stop("D1");
@@ -325,22 +313,19 @@ void loop() {
           break;     
         }case 11:
         {
-          Time = 500;
+          Time = M_PI * 6.5 * Drive_Speed;
           Bot.Reverse("D1", Drive_Speed);
-          if(driveEncoder.getEncoderRawCount >= ){
-            Bot.Stop("D1");
-            Bot_Phase = 12;
-          }
           break;
         }case 12: //Lays down the robot to signal finish
         {
           Time = 1000;
+          Bot.Stop("D1");
           Legs(Leg1_Side, Leg2_Side);
           Bot_Phase = 13;
           break;          
         }case 13:
         {
-          Legs(Leg1_Min, Leg2_Min):
+          Legs(Leg1_Min, Leg2_Min);
           break;
         }
 
@@ -379,7 +364,7 @@ void loop() {
           pos = map(analogRead(POT), 0, 4096, 330, 2100);
           //Bot_Servos.ToPosition("S1", pos);
           Bot.ToPosition("S1", pos);
-          Serial.println(pos);
+          Serial.println(analogRead(POT));
           break;
         }
       case 1:
@@ -388,7 +373,7 @@ void loop() {
           pos = map(analogRead(POT), 0, 4096, Leg2_Min, Leg2_Max);
           //Bot_Servos.ToPosition("S2", pos);
           Bot.ToPosition("S2", pos);
-          Serial.println(pos);
+          Serial.println(analogRead(POT));
           break;
         }
       case 2:
@@ -518,8 +503,7 @@ void loop() {
               }
           }
           break;
-        }
-      case 7:
+        }case 7:
         {
           Serial.printf("Microswitch (Pin %d): ", MSWITCH_1);
           Button_State = digitalRead(MSWITCH_1);
@@ -530,7 +514,9 @@ void loop() {
           } else {
             Serial.println("LOW");
           }
+          break;
         }
+        
     }
 #endif
   }
