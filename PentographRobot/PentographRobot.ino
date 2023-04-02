@@ -5,27 +5,37 @@ Dylan Meikle
 #include <stdio.h>
 //#include<math.h>
 
-#define WRIST           2
-#define CLAW            45
-#define LEG1            41
-#define LEG2            42
-#define CENTER_MOTOR_A  40
-#define CENTER_MOTOR_B  39
+#define WRIST 2
+#define CLAW 45
+#define LEG1 41
+#define LEG2 42
+#define CENTER_MOTOR_A 40
+#define CENTER_MOTOR_B 39
 
-#define LEFT_MOTOR_A    35   // GPIO35 pin 28 (J35) Motor 1 A
-#define LEFT_MOTOR_B    36   // GPIO36 pin 29 (J36) Motor 1 B
-#define RIGHT_MOTOR_A   37  // GPIO37 pin 30 (J37) Motor 2 A
-#define RIGHT_MOTOR_B   38  // GPIO38 pin 31 (J38) Motor 2 B
+#define LEFT_MOTOR_A 35   // GPIO35 pin 28 (J35) Motor 1 A
+#define LEFT_MOTOR_B 36   // GPIO36 pin 29 (J36) Motor 1 B
+#define RIGHT_MOTOR_A 37  // GPIO37 pin 30 (J37) Motor 2 A
+#define RIGHT_MOTOR_B 38  // GPIO38 pin 31 (J38) Motor 2 B
 
-#define ECHO            10
-#define TRIG            9
+#define ECHO 10
+#define TRIG 9
 
-#define MODE_BUTTON     0
-#define MSWITCH_1       4  //The Dragging one
-#define MSWITCH_2       5  //The one to stop the pentograph exterder
-#define MSWITCH_3       6  //The one in the Claw
-#define MSWITCH_4       7  //
-#define POT             1
+#define MODE_BUTTON 0
+#define MSWITCH_1 4  //The Dragging one
+#define MSWITCH_2 5  //The one to stop the pentograph exterder
+#define MSWITCH_3 6  //The one in the Claw
+#define MSWITCH_4 7  //
+#define POT 1
+
+#define ENCODER_LEFT_A 15
+#define ENCODER_LEFT_B 16
+#define ENCODER_LEFT_DIR 17
+#define ENCODER_LEFT_SPD 18
+#define ENCODER_RIGHT_A 11
+#define ENCODER_RIGHT_B 12
+#define ENCODER_RIGHT_DIR 13
+#define ENCODER_RIGHT_SPD 14
+
 
 //Uncomment to test motors and servos
 #define TESTING 1
@@ -42,9 +52,7 @@ Encoders driveEncoders = Encoders();
 
 //=============================================================
 
-boolean Time_Up_1 = false;
-boolean Time_Up_2 = false;
-boolean Time_Up_3 = false;
+boolean Time_Up = false;
 
 unsigned int current_Millis;
 unsigned int previous_Millis;
@@ -53,6 +61,7 @@ int pos = 0;
 int pos1 = 0;
 int pos2 = 0;
 int i = 0;
+int Time = 1000;
 
 unsigned char Drive_Speed;
 unsigned int ui_Mode_PB_Debounce = 0;
@@ -60,9 +69,11 @@ long duration;
 int distance;
 int Button_State;
 char Motor_Direction;
+int Scan_Angle = Wrist_Min;
 
-const unsigned int Bar_Height = 45;
-const unsigned int Gap_Width = 30;
+const unsigned double Bar_Height = 45;
+const unsigned double Gap_Width = 30;
+unsigned double Hyp = sqrt((Bar_Height * Bar_Height) + (Gap_Width * Gap_Width));
 //unsigned int angle = arctan(Bar_Height/Gap_Width);
 
 
@@ -85,8 +96,30 @@ const int Leg2_Side = 1175;
 int Leg1_Bar;  //Angled so that the body directs the pentograph towards the bar
 int Leg2_Bar;  // based on gap and height
 
+//=================================================================================
 
+void Legs(int Leg1, int Leg2) {
+  pos1 = map(Leg1, 0, 4096, Leg1_Min, Leg1_Max);
+  pos2 = map(Leg2, 0, 4096, Leg2_Min, Leg2_Max);
 
+  //Bot_Servos.ToPosition("S1", pos1);
+  //Bot_Servos.ToPosition("S2", pos2);
+  Bot.ToPosition("S1", pos1);
+  Bot.ToPosition("S2", pos2);
+}
+
+//Interrupt Service Routines
+void IRAM_ATTR LeftSpd_EncoderISR()  // ISR to update left encoder count
+{
+  driveEncoders.LeftSpd_Encoder_ISR();
+}
+
+void IRAM_ATTR RightSpd_EncoderISR()  // ISR to update right encoder count
+{
+  driveEncoders.RightSpd_Encoder_ISR();
+}
+
+//=============================================================
 
 void setup() {
   Serial.begin(9600);
@@ -100,7 +133,7 @@ void setup() {
   //Bot_Servos.servoBegin("S2", LEG2);
   //Bot_Servos.servoBegin("S3", CLAW);
   //Bot_Servos.servoBegin("S4", WRIST);
-  
+
   //Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
   Bot.servoBegin("S3", CLAW);
   Bot.servoBegin("S4", WRIST);
@@ -108,7 +141,9 @@ void setup() {
   //Bot.driveBegin("D2", CENTER_MOTOR_A, CENTER_MOTOR_B, 15, 16);
   Bot.servoBegin("S1", LEG1);
   Bot.servoBegin("S2", LEG2);
-  
+
+  driveEncoders.Begin(0, LeftSpd_EncoderISR, RightSpd_EncoderISR);
+
   pinMode(MODE_BUTTON, INPUT_PULLUP);
   pinMode(MSWITCH_1, INPUT);
   pinMode(ECHO, INPUT);   //ECHO takes in data
@@ -116,47 +151,27 @@ void setup() {
   //Legs(Leg1_Side, Leg2_Side);
   //add code to have the claw start closed or open
 }
-void Legs(int Leg1, int Leg2) {
-  pos1 = map(Leg1, 0, 4096, Leg1_Min, Leg1_Max);
-  pos2 = map(Leg2, 0, 4096, Leg2_Min, Leg2_Max);
 
-  //Bot_Servos.ToPosition("S1", pos1);
-  //Bot_Servos.ToPosition("S2", pos2);
-  Bot.ToPosition("S1", pos1);    
-  Bot.ToPosition("S2", pos2);
-
-}
+//================================================================
 
 void loop() {
 
   current_Millis = millis();
-  if ((current_Millis - previous_Millis) >= 2000) {
+  if ((current_Millis - previous_Millis) >= Time) {
     previous_Millis = current_Millis;
-    Time_Up_1 = true;
+    Time_Up = true;
   }
-  if (Time_Up_1) {
-    Time_Up_1 = false;
-    /*
-    0 - Stand up (Lowest servo can go)
-    1 - Drive Forward until microcswitch1 detects edge
-    2 - Based on distance from bar, calculate the angle the servos
-        should be at to reach the bar.
-    3 - Begin to exted the arm using the gear motor (fully extended)
-    4 - Retract the arm and stop once microswitch2 detectes bar
-    5 - Continue to retract the bar and maybe angle the wrist servo
-    6 - Once retracted like 70 %, extend again to lower bot onto platform
-    7 - A few seconds after microswitch1 detects ground and arm is 
-        fully extended, release the claw
-    8 - Retract arm
-    9 - Drive to edge
-    10 - Drive back
-    11 - Signal finished (Maybe just fold legs or have them go 
-        up and down)
+  if (Time_Up) {
+    Time_Up = false;
+
     /* Order in which the Robot Phases Should Occur:
-    0 - Stand up to initial height
-    1 - Drive towards edge until microswitch slips off edge
-    2 - Angle the Bot so that the arm is angled towards the upper bar
-    3 - 
+    0 - Stand up to initial height                                      - Figure out a good starting point (Maybe set using pot)
+    1 - Drive towards edge until microswitch slips off edge               
+    2 - Angle the Bot so that the arm is angled towards the upper bar   - Figure out geometry for angle of servo calculation in terms of height and base
+    3 - Wrist scans for the bar using the ultrasonic sensor             - Test values of time and distance
+    4 - Extend the arm until the ultrasonic sensor is less than 2cm     - Test value of distance
+    5 - Close the Claw
+    6 - Retract the arm for a few seconds                               - Test time to retract
     */
 #ifndef TESTING
     switch (Bot_Phase) {
@@ -164,7 +179,7 @@ void loop() {
         {
           //Maybe find a good initial value that isn't max
           Legs(Leg1_Max, Leg2_Max);
-          Serial.printf("Legs Extended\n");
+          Serial.println("Legs Extended");
           Bot_Phase = 1;
 
           break;
@@ -173,12 +188,11 @@ void loop() {
         {
           //Bot_Motors.Forward("D1", Drive_Speed);
           Bot.Forward("D1", Drive_Speed);
-          //Test the microswitch to see what values it outputs when pushed
-          // for now assuming OFF means not pressed
           if (analogRead(MSWITCH_1) == HIGH) {
             Bot_Phase = 2;
             //Bot_Motors.Stop("D1");
             Bot.Stop("D1");
+            Serial.println("Bot in Position");
           }
           break;
         }
@@ -186,46 +200,91 @@ void loop() {
         {
           //Change Distances of gap and height to include the bots actual
           // body dimensions
+          //Leg#_Bar still need to be calculated somehow
           Legs(Leg1_Bar, Leg2_Bar);
           Serial.println("Bot Angled");
           Bot_Phase = 3;
           break;
         }
-      case 3:
+      case 3:  //Wrist goes at different angles, scanning for bar
         {
-          //Straighten the wrist
-          //Bot_Servos.ToPosition("S4", Wrist_Straight);
-          Serial.println("Wrist Straightened");
-          Bot_Phase = 4;
+          Time = 10;
+          //Start at Wrist_Min and end at Wrist_Max
+          if (Scan_Angle >= Wrist_Max || Scan_Angle <= Wrist_Min) {
+            if (Scan_Angle >= Wrist_Max) {
+              Scan_Angle = Scan_Angle + 10;
+            } else {
+              Scan_Angle = Scan_Angle - 10;
+            }
+          }
+
+          Bot.ToPosition("S4", Scan_Angle);
+          switch (i) {
+            case 0:
+              {
+                digitalWrite(TRIG, LOW);  // Clears the trigPin
+                i++;
+                break;
+              }
+            case 1:
+              {
+                digitalWrite(TRIG, HIGH);
+                i++;
+                break;
+              }
+            case 2:
+              {
+                digitalWrite(TRIG, LOW);
+                duration = pulseIn(ECHO, HIGH);   // Reads the echoPin, returns the sound wave travel time in microseconds
+                distance = duration * 0.034 / 2;  // Calculating the distance in cm
+                if (35 < distance < 65) {
+                  Bot_Phase = 4;
+                }
+                i = 0;
+                break;
+              }
+          }
           break;
         }
       case 4:
         {
-          //Bot_Motors.Forward("M1", Drive_Speed);
+          //Time = 10;
           Bot.Forward("M1", Drive_Speed);
-          if (analogRead(MSWITCH_2) == HIGH) {
-            Bot_Phase = 6;
-            //Bot_Motors.Stop("M1");
-            Bot.Stop("M1");
+          if(analogRead(MSWITCH_2) == HIGH){      //If the pentograph over extends then it will hit mswitch2 and stop operations
+            Bot.Stop("M1");                       // then maybe consider having it retract and restart by scanning for bar.
+          }
+          switch (i) {
+            case 0:
+            {
+              digitalWrite(TRIG, LOW);  // Clears the trigPin
+              i++;
+              break;
+            }
+            case 1:
+            {
+              digitalWrite(TRIG, HIGH);
+              i++;
+              break;
+            }
+            case 2:
+            {
+              digitalWrite(TRIG, LOW);
+              duration = pulseIn(ECHO, HIGH);   // Reads the echoPin, returns the sound wave travel time in microseconds
+              distance = duration * 0.034 / 2;  // Calculating the distance in cm
+              if (distance <= 2) {
+                Bot_Phase = 5;
+                Bot.Stop("M1");
+              }
+              i = 0;
+              break;
+            }
           }
           break;
-        }
-      case 5:
+        }case 5:
         {
-          //Bot_Servos.ToPosition("S3", Claw_Closed);
-          Serial.println("Claw Closed");
-          if (analogRead(MSWITCH_1) == HIGH) {
-            Bot_Phase = 6;
-          }
 
-          break;
         }
-      case 6:
-        {
-          //Bot_Servos.ToPosition("S3", Claw_Open);
-          Bot_Phase = 7;
-          break;
-        }
+
     }
 #else
     /* TESTING CODE SECTION
@@ -245,14 +304,14 @@ void loop() {
           7 - Microswitches                       - Working
     */
     //Reset to change case
-    if(Bot_Phase == 0){
+    if (Bot_Phase == 0) {
       Serial.println("Enter case #");
       while (Serial.available() == 0) {
         Bot_Phase = Serial.parseInt();
       }
       Serial.println(Bot_Phase);
     }
-   
+
     Drive_Speed = map(analogRead(POT), 0, 4096, 150, 255);
     switch (Bot_Phase) {
       case 0:
@@ -299,8 +358,8 @@ void loop() {
           //Bot_Motors.Forward("M1", Drive_Speed);
           Bot.Forward("M1", Drive_Speed);
           Serial.println(millis() / 1000);*/
-          
-          Bot.Forward("M1", Drive_Speed);
+          Bot.Forward("D1", Drive_Speed);
+          //Bot.Forward("M1", Drive_Speed);
           /*
           while(i != 2){
             Motor_Direction = Serial.read();
@@ -323,44 +382,48 @@ void loop() {
           //Bot.Forward("D1", Drive_Speed);
           //Serial.println(Drive_Speed);
           Serial.println(i);
-          switch(i)                                                  // Cycle through drive states
+          switch (i)  // Cycle through drive states
           {
-            case 0:                                                   // Stop
-            {
-              
-              //Bot_Motors.Stop("D1");                                       // Drive ID
-              Bot.Stop("D1");
-              i = 1;                                                // Next state: drive forward
-              break;
-            }case 1:                                                // Drive forward
-            {
-              
-              //Bot_Motors.Forward("D1", Drive_Speed, Drive_Speed);          // Drive ID, Left speed, Right speed
-              Bot.Forward("D1", Drive_Speed, Drive_Speed);
-              i = 2;                                                // Next state: drive backward
-              break;
-            }case 2:                                                // Drive backward
-            {
-              
-              //Bot_Motors.Reverse("D1", Drive_Speed);                       // Drive ID, Speed (same for both)
-              Bot.Reverse("D1", Drive_Speed); 
-              i = 3;                                                // Next state: turn left
-              break;
-            }case 3:                                                // Turn left (counterclockwise)
-            {
-              
-              //Bot_Motors.Left("D1", Drive_Speed);                          // Drive ID, Speed (same for both)
-              Bot.Left("D1", Drive_Speed);
-              i = 4;                                                // Next state: turn right
-              break;
-            }case 4:                                                // Turn right (clockwise)
-            {
-              
-              //Bot_Motors.Right("D1", Drive_Speed);                         // Drive ID, Speed (same for both)
-              Bot.Right("D1", Drive_Speed);
-              i = 0;                                                // Next state: stop
-              break;
-            }
+            case 0:  // Stop
+              {
+
+                //Bot_Motors.Stop("D1");                                       // Drive ID
+                Bot.Stop("D1");
+                i = 1;  // Next state: drive forward
+                break;
+              }
+            case 1:  // Drive forward
+              {
+
+                //Bot_Motors.Forward("D1", Drive_Speed, Drive_Speed);          // Drive ID, Left speed, Right speed
+                Bot.Forward("D1", Drive_Speed, Drive_Speed);
+                i = 2;  // Next state: drive backward
+                break;
+              }
+            case 2:  // Drive backward
+              {
+
+                //Bot_Motors.Reverse("D1", Drive_Speed);                       // Drive ID, Speed (same for both)
+                Bot.Reverse("D1", Drive_Speed);
+                i = 3;  // Next state: turn left
+                break;
+              }
+            case 3:  // Turn left (counterclockwise)
+              {
+
+                //Bot_Motors.Left("D1", Drive_Speed);                          // Drive ID, Speed (same for both)
+                Bot.Left("D1", Drive_Speed);
+                i = 4;  // Next state: turn right
+                break;
+              }
+            case 4:  // Turn right (clockwise)
+              {
+
+                //Bot_Motors.Right("D1", Drive_Speed);                         // Drive ID, Speed (same for both)
+                Bot.Right("D1", Drive_Speed);
+                i = 0;  // Next state: stop
+                break;
+              }
           }
           break;
         }
@@ -401,7 +464,7 @@ void loop() {
         {
           Serial.printf("Microswitch (Pin %d): ", MSWITCH_1);
           Button_State = digitalRead(MSWITCH_1);
-                    
+
           //Serial.println(Button_State);
           if (Button_State == HIGH) {
             Serial.println("HIGH");
