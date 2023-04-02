@@ -22,8 +22,8 @@ Dylan Meikle
 
 #define MODE_BUTTON 0
 #define MSWITCH_1 4  //The Dragging one
-#define MSWITCH_2 5  //The one to stop the pentograph exterder
-#define MSWITCH_3 6  //The one in the Claw
+#define MSWITCH_2 5  //The one to stop the pentograph motor
+#define MSWITCH_3 6  //The one to determine when the pentograph is fully retracted
 #define MSWITCH_4 7  //
 #define POT 1
 
@@ -171,7 +171,8 @@ void loop() {
     3 - Wrist scans for the bar using the ultrasonic sensor             - Test values of time and distance
     4 - Extend the arm until the ultrasonic sensor is less than 2cm     - Test value of distance
     5 - Close the Claw
-    6 - Retract the arm for a few seconds                               - Test time to retract
+    6 - Retract the arm for a few seconds                               - Test time to retract(currently 10 seconds)
+    7 -
     */
 #ifndef TESTING
     switch (Bot_Phase) {
@@ -188,7 +189,7 @@ void loop() {
         {
           //Bot_Motors.Forward("D1", Drive_Speed);
           Bot.Forward("D1", Drive_Speed);
-          if (analogRead(MSWITCH_1) == HIGH) {
+          if (analogRead(MSWITCH_1) == LOW {
             Bot_Phase = 2;
             //Bot_Motors.Stop("D1");
             Bot.Stop("D1");
@@ -245,8 +246,7 @@ void loop() {
               }
           }
           break;
-        }
-      case 4:
+        }case 4:
         {
           //Time = 10;
           Bot.Forward("M1", Drive_Speed);
@@ -282,7 +282,66 @@ void loop() {
           break;
         }case 5:
         {
-
+          Time = 2000;
+          Bot.ToPosition("S3", Claw_Closed);
+          Bot_Phase = 6;
+          break;
+        }case 6:
+        {
+          Time = 10000;//10 seconds of retracting
+          Bot.Reverse("M1", Drive_Speed);
+          Bot_Phase = 7;  
+          break;      
+        }case 7:  //Bot Extends until the mswitch1 touches the ground
+        {
+          Time = 1000;
+          Bot.Forward("M1", Drive_Speed);
+          if(MSWITCH_1 == HIGH){
+            Bot_Phase = 8;
+            Bot.Stop("M1");
+          }
+          break;
+        }case 8:  //Opens claw
+        {
+          Time = 2000;
+          Bot.ToPosition("S3", Claw_Open);
+          Bot_Phase = 9;
+          break;
+        }case 9:
+        {
+          Bot.Reverse("M1", Drive_Speed);
+          if(MSWITCH_3 == HIGH){
+            Bot_Phase = 10;
+            Bot.Stop("M1");
+          }
+          break;
+        }case 10:
+        {
+          Bot.Forward("D1", Drive_Speed);
+          if(MSWITCH_1 == LOW){
+            Bot_Phase = 11;
+            Bot.Stop("D1");            
+          }    
+          break;     
+        }case 11:
+        {
+          Time = 500;
+          Bot.Reverse("D1", Drive_Speed);
+          if(driveEncoder.getEncoderRawCount >= ){
+            Bot.Stop("D1");
+            Bot_Phase = 12;
+          }
+          break;
+        }case 12: //Lays down the robot to signal finish
+        {
+          Time = 1000;
+          Legs(Leg1_Side, Leg2_Side);
+          Bot_Phase = 13;
+          break;          
+        }case 13:
+        {
+          Legs(Leg1_Min, Leg2_Min):
+          break;
         }
 
     }
