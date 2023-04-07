@@ -73,9 +73,6 @@ const int Leg1_Side = 1220;  //Legs parallel with bot
 const int Leg2_Side = 1160;
 int Scan_Angle1 = Leg1_Max;
 int Scan_Angle2 = Leg2_Max;
-int Leg1_Bar;  //Angled so that the body directs the pentograph towards the bar
-int Leg2_Bar;  // based on gap and height
-
 //=================================================================================
 
 void Legs(int Leg1, int Leg2) {
