@@ -121,13 +121,13 @@ void setup() {
   //Bot_Servos.servoBegin("S3", CLAW);
   //Bot_Servos.servoBegin("S4", WRIST);
 
-  //Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
+  Bot.motorBegin("M1", CENTER_MOTOR_A, CENTER_MOTOR_B);
   Bot.driveBegin("D1", LEFT_MOTOR_A, LEFT_MOTOR_B, RIGHT_MOTOR_A, RIGHT_MOTOR_B);
   Bot.servoBegin("S1", LEG1);
   Bot.servoBegin("S2", LEG2);
   Bot.servoBegin("S3", CLAW);
   Bot.servoBegin("S4", WRIST);
-  //pinMode();
+  
 
   
   pinMode(MSWITCH_1, INPUT);
@@ -206,7 +206,6 @@ void loop() {
             Scan_Angle2 = Scan_Angle2 + 10;
           }
           Legs(Scan_Angle1, Scan_Angle2);
-          //Bot.ToPosition("S4", Scan_Angle);
           distance = Sonic_Sensor();
           if (35 < distance < 65) {
             Bot_Phase = 4;
@@ -297,8 +296,7 @@ void loop() {
           6 - Ultrasonic sensor                   - Working 
           7 - Microswitches                       - Working
     */
-    //Reset to change case
-    if (Bot_Phase == 0) {
+    if (Bot_Phase == 0) {             //This part takes user input to choose which testing environment
       Serial.println("Enter case #");
       while (Serial.available() == 0) {
         Bot_Phase = Serial.parseInt();
